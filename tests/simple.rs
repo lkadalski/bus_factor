@@ -24,7 +24,7 @@ async fn test_defaults() {
     let url = format!("{}/search/repositories", &mock_server.uri());
     println!("{}", &url);
 
-    let cli = Command::cargo_bin("cli")
+    let cli = Command::cargo_bin("bus_factor")
         .unwrap()
         .env("GITHUB_ACCESS_TOKEN", "PAT_TOKEN")
         .args(&["-l", "rust"])
@@ -36,7 +36,7 @@ async fn test_defaults() {
 }
 #[tokio::test]
 async fn test_help() {
-    Command::cargo_bin("cli")
+    Command::cargo_bin("bus_factor")
         .unwrap()
         .arg("--help")
         .assert()

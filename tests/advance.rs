@@ -46,7 +46,7 @@ async fn test_simple_scenario() {
 
     let url = format!("{}/search/repositories", &mock_server.uri());
 
-    let cli = Command::cargo_bin("cli")
+    let cli = Command::cargo_bin("bus_factor")
         .unwrap()
         .env("GITHUB_ACCESS_TOKEN", "PAT_TOKEN")
         .args(&["-l", "rust"])

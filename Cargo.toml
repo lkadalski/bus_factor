@@ -2,7 +2,7 @@
 name = "bus_factor"
 version = "0.1.0"
 edition = "2021"
-default-run = "cli"
+default-run = "bus_factor"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,5 +23,5 @@ wiremock = "0.5.7"
 predicates = "2.0.3"
 
 [[bin]]
-name = "cli"
-path = "src/bin/cli.rs"
+name = "bus_factor"
+path = "src/bin/bus_factor.rs"
