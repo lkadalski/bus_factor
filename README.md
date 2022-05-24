@@ -6,11 +6,12 @@ Program accepts two parameters `language` and `project_count`.
 Program fetches the first `project_count` most popular projects from the given `language`.
 
 ## Usage
-Typical use:
-`$ bus_factor --language rust --project_count 10` or
-`$ cargo run -- --language rust --project_count 10`
-or with extra logs:
-`$ RUST_LOG=DEBUG bus_factor --language rust --project_count 10`
+Typical use:<br>
+`$ bus_factor --language rust --project_count 10` <br>
+or <br>
+`$ cargo run -- --language rust --project_count 10` <br>
+or with extra logs: <br>
+`$ RUST_LOG=DEBUG bus_factor --language rust --project_count 10` <br>
 Possible values for `RUST_LOG` is `INFO, WARN, ERROR, DEBUG, TRACE` 
 
 
