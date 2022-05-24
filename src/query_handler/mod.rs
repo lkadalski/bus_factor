@@ -2,7 +2,7 @@ pub mod bus_factor;
 pub mod repository;
 
 use crate::BusFactorQueryCommand;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use reqwest::header::HeaderMap;
 use std::env;
 use std::sync::Arc;
@@ -32,8 +32,10 @@ pub struct RepositoryQueryResult {
 
 impl HttpClientDetails {
     fn new(command: BusFactorQueryCommand) -> Result<Self> {
-        let personal_access_token = format!("token {}", env::var("GITHUB_ACCESS_TOKEN")?);
-        log::debug!("Using access token {}", personal_access_token);
+        let personal_access_token = env::var("GITHUB_ACCESS_TOKEN")
+            .map(|token| format!("token {}", token))
+            .map_err(|err| anyhow!("Missing GITHUB_ACCESS_TOKEN environment variable. {err}"))?;
+
         let mut default_headers = HeaderMap::new();
         default_headers.append(
             reqwest::header::AUTHORIZATION,

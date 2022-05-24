@@ -50,7 +50,7 @@ impl RepositoryHandler {
             page_request_count
         );
 
-        if initial_response_count > (command.project_count - page_size) {
+        if initial_response_count > page_size {
             for request_no in 2..=page_request_count {
                 let full_url = create_repo_url(request_no, &client_details, page_size)?;
                 tokio::spawn(Self::fetch_page_of_results(
@@ -93,19 +93,24 @@ impl RepositoryHandler {
             .await?;
         log::trace!("{:?}", &response);
         let total_count = response.total_count;
-        tokio::spawn(async move {
-            for project in response.items {
-                tx.send(RepositoryQueryResult {
-                    stargazers: project.stargazers_count,
-                    contributor_url: project.contributors_url,
-                    project_name: project.full_name,
-                    client_details: client_details.clone(),
-                })
-                .await
-                .expect("Could not send message to contributor query handler");
-            }
-        });
+        tokio::spawn(Self::send_data(response, tx, client_details));
         Ok(total_count)
+    }
+    async fn send_data(
+        response: StargazersQueryResponse,
+        tx: Sender<RepositoryQueryResult>,
+        client_details: Arc<HttpClientDetails>,
+    ) {
+        for project in response.items {
+            tx.send(RepositoryQueryResult {
+                stargazers: project.stargazers_count,
+                contributor_url: project.contributors_url,
+                project_name: project.full_name,
+                client_details: client_details.clone(),
+            })
+            .await
+            .expect("Could not send message to contributor query handler");
+        }
     }
 }
 fn create_repo_url(
@@ -151,12 +156,29 @@ struct RepositoryDetails {
 mod tests {
     use super::*;
     #[test]
-    fn calculate_page_size_for_typical_use_cases_beside_first_page() {
+    fn calculate_page_count() {
+        let result = RepositoryHandler::determine_page_count(30, 30);
+        assert_eq!(result, 1);
         let result = RepositoryHandler::determine_page_count(40, 30);
         assert_eq!(result, 2);
         let result = RepositoryHandler::determine_page_count(60, 30);
         assert_eq!(result, 2);
-        let result = RepositoryHandler::determine_page_count(99, 30);
-        assert_eq!(result, 4);
+        let result = RepositoryHandler::determine_page_count(90, 30);
+        assert_eq!(result, 3);
+    }
+    #[test]
+    fn calculate_page_size() {
+        let result = RepositoryHandler::determine_page_size(&BusFactorQueryCommand {
+            language: "test".to_string(),
+            project_count: 25,
+            github_url: "".to_string(),
+        });
+        assert_eq!(result, 25);
+        let result = RepositoryHandler::determine_page_size(&BusFactorQueryCommand {
+            language: "test".to_string(),
+            project_count: 35,
+            github_url: "".to_string(),
+        });
+        assert_eq!(result, 30);
     }
 }
