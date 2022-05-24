@@ -1,4 +1,4 @@
-use crate::query_handler::RepositoryBusFactorResult;
+use crate::query_handler::BusFactorQueryResult;
 use anyhow::Result;
 use itertools::Itertools;
 use std::sync::Arc;
@@ -6,14 +6,15 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
 
 pub(crate) struct ReportGenerator {}
-type DataStorage = Arc<Mutex<Vec<RepositoryBusFactorResult>>>;
+type DataStorage = Arc<Mutex<Vec<BusFactorQueryResult>>>;
+
 impl ReportGenerator {
-    pub(crate) async fn run(receiver: Receiver<RepositoryBusFactorResult>) -> Result<()> {
+    pub(crate) async fn run(receiver: Receiver<BusFactorQueryResult>) -> Result<()> {
         tokio::task::spawn(Self::process_results(receiver)).await??;
         log::trace!("Closing Report Generator");
         Ok(())
     }
-    async fn process_results(mut receiver: Receiver<RepositoryBusFactorResult>) -> Result<()> {
+    async fn process_results(mut receiver: Receiver<BusFactorQueryResult>) -> Result<()> {
         log::trace!("About to start consuming");
         let final_data: DataStorage = Arc::new(Mutex::new(vec![]));
         while let Some(data) = receiver.recv().await {
@@ -24,11 +25,11 @@ impl ReportGenerator {
         Self::print_data(final_data).await;
         Ok(())
     }
-    async fn save_data(data: RepositoryBusFactorResult, data_storage: DataStorage) {
+    async fn save_data(data: BusFactorQueryResult, data_storage: DataStorage) {
         let mut lock = data_storage.lock().await;
         lock.push(data);
     }
-    async fn print_data(data_storage: Arc<Mutex<Vec<RepositoryBusFactorResult>>>) {
+    async fn print_data(data_storage: Arc<Mutex<Vec<BusFactorQueryResult>>>) {
         let data = data_storage.lock().await;
         data.iter()
             .sorted_unstable_by_key(|bus_factor| bus_factor.bus_factor)
@@ -37,7 +38,7 @@ impl ReportGenerator {
                 println!(
                     "project: {:20}\t\tuser: {:20}\t\tpercentage: {}",
                     print.repo_name, print.login, print.bus_factor
-                )
+                );
             });
     }
 }

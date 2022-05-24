@@ -1,5 +1,5 @@
-pub mod contributor_query_handler;
-pub mod repository_query_handler;
+pub mod bus_factor;
+pub mod repository;
 
 use crate::BusFactorQueryCommand;
 use anyhow::Result;
@@ -7,7 +7,7 @@ use reqwest::header::HeaderMap;
 use std::env;
 use std::sync::Arc;
 
-const USER_AGENT_VALUE: &'static str = "request";
+const USER_AGENT_VALUE: &str = "request";
 
 #[derive(Debug)]
 pub struct HttpClientDetails {
@@ -15,7 +15,7 @@ pub struct HttpClientDetails {
     command: BusFactorQueryCommand,
 }
 #[derive(Debug)]
-pub struct RepositoryBusFactorResult {
+pub struct BusFactorQueryResult {
     pub login: String,
     pub contributions: u32,
     pub repo_name: String,

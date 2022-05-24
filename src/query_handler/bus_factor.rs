@@ -1,4 +1,4 @@
-use crate::query_handler::{Other, RepositoryBusFactorResult, RepositoryQueryResult};
+use crate::query_handler::{BusFactorQueryResult, Other, RepositoryQueryResult};
 use anyhow::{anyhow, Context, Result};
 use reqwest::Url;
 use serde::Deserialize;
@@ -8,7 +8,7 @@ pub(crate) struct ContributorHandler;
 impl ContributorHandler {
     pub(crate) async fn run(
         mut receiver: Receiver<RepositoryQueryResult>,
-    ) -> Result<Receiver<RepositoryBusFactorResult>> {
+    ) -> Result<Receiver<BusFactorQueryResult>> {
         let (tx, rx) = channel(1000);
         tokio::task::spawn(async move {
             while let Some(data) = receiver.recv().await {
@@ -19,7 +19,7 @@ impl ContributorHandler {
         Ok(rx)
     }
 
-    async fn fetch_data(data: RepositoryQueryResult, tx: Sender<RepositoryBusFactorResult>) {
+    async fn fetch_data(data: RepositoryQueryResult, tx: Sender<BusFactorQueryResult>) {
         if let Err(err) = Self::query_api(data, tx).await {
             eprintln!("Error during fetching contributors API: {err}");
             std::process::exit(1);
@@ -27,11 +27,11 @@ impl ContributorHandler {
     }
     async fn query_api(
         data: RepositoryQueryResult,
-        tx: Sender<RepositoryBusFactorResult>,
+        tx: Sender<BusFactorQueryResult>,
     ) -> Result<()> {
         let response = Self::fetch_page_of_results(&data).await?;
         let bus_factor_detected =
-            Self::detect_bus_factor(&response.contributors, data.project_name, data.stargazers);
+            Self::detect_bus_factor(&response.contributors, &data.project_name, data.stargazers);
         if let Some(bus_factor) = bus_factor_detected {
             tx.send(bus_factor).await?;
         }
@@ -39,20 +39,20 @@ impl ContributorHandler {
     }
     fn detect_bus_factor(
         contributors: &[ContributorDetails],
-        project_name: String,
+        project_name: &str,
         star_gazers: u32,
-    ) -> Option<RepositoryBusFactorResult> {
+    ) -> Option<BusFactorQueryResult> {
         log::trace!("Calculating bus factor for {project_name}");
-        let contributors_total_commits = Self::calculate_commits_sum(&contributors);
+        let contributors_total_commits = Self::calculate_commits_sum(contributors);
         contributors.iter().find_map(|contributor| {
             let percentage = (100 * contributor.contributions) / contributors_total_commits;
             log::trace!("Calculated percentage is {percentage:?} for project {project_name}");
             if percentage >= 75 {
                 log::info!("Project {project_name} has a busfactor");
-                return Some(RepositoryBusFactorResult {
+                return Some(BusFactorQueryResult {
                     login: contributor.login.clone(),
                     contributions: contributor.contributions,
-                    repo_name: project_name.clone(),
+                    repo_name: project_name.to_string(),
                     bus_factor: percentage,
                     stargazers: star_gazers,
                 });
@@ -67,9 +67,9 @@ impl ContributorHandler {
             .fold(0, |prev, next| prev + next.contributions)
     }
 
-    fn create_contrib_url(base_url: String) -> Result<Url> {
+    fn create_contrib_url(base_url: &str) -> Result<Url> {
         Url::parse_with_params(
-            &base_url,
+            base_url,
             &[
                 ("sort", "contributions"),
                 ("order", "desc"),
@@ -83,7 +83,7 @@ impl ContributorHandler {
     async fn fetch_page_of_results(
         query_result: &RepositoryQueryResult,
     ) -> Result<ContributorsResponse> {
-        let full_url = Self::create_contrib_url(query_result.contributor_url.clone())?;
+        let full_url = Self::create_contrib_url(&query_result.contributor_url)?;
         log::trace!("Targeting {:?}", &full_url);
         let request = query_result.client_details.client.get(full_url);
         log::trace!("{:?}", &request);
@@ -98,6 +98,7 @@ struct ContributorsResponse {
     contributors: Vec<ContributorDetails>,
 }
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 struct ContributorDetails {
     login: String,
     contributions: u32,
@@ -115,7 +116,7 @@ mod tests {
                 contributions: 1000,
                 other: Default::default(),
             }],
-            "minigun".to_string(),
+            "minigun",
             100,
         );
         assert!(result.is_some());
@@ -136,7 +137,7 @@ mod tests {
                     other: Default::default(),
                 },
             ],
-            "minigun".to_string(),
+            "minigun",
             100,
         );
         assert!(result.is_none());
@@ -156,10 +157,26 @@ mod tests {
                     other: Default::default(),
                 },
             ],
-            "minigun".to_string(),
+            "minigun",
             100,
         );
         assert!(result.is_some());
         assert_eq!(result.unwrap().bus_factor, 75)
+    }
+    #[test]
+    fn calculate_commits_sum() {
+        let result = ContributorHandler::calculate_commits_sum(&[
+            ContributorDetails {
+                login: "luke".to_string(),
+                contributions: 750,
+                other: Default::default(),
+            },
+            ContributorDetails {
+                login: "kubot".to_string(),
+                contributions: 250,
+                other: Default::default(),
+            },
+        ]);
+        assert_eq!(result, 1000)
     }
 }

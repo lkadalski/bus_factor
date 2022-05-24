@@ -36,7 +36,7 @@ impl RepositoryHandler {
         let page_size = Self::determine_page_size(&command);
 
         let initial_response_count = Self::fetch_page_of_results(
-            create_repo_url(1, client_details.clone(), page_size)?,
+            create_repo_url(1, &client_details, page_size)?,
             client_details.clone(),
             tx.clone(),
         )
@@ -52,7 +52,7 @@ impl RepositoryHandler {
 
         if initial_response_count > (command.project_count - page_size) {
             for request_no in 2..=page_request_count {
-                let full_url = create_repo_url(request_no, client_details.clone(), page_size)?;
+                let full_url = create_repo_url(request_no, &client_details, page_size)?;
                 tokio::spawn(Self::fetch_page_of_results(
                     full_url,
                     client_details.clone(),
@@ -66,7 +66,7 @@ impl RepositoryHandler {
     fn determine_page_count(project_count: u32, page_size: u32) -> u32 {
         let mut page_request_count = project_count / page_size;
         if project_count % page_size > 0 {
-            page_request_count = page_request_count + 1;
+            page_request_count += 1;
         }
         page_request_count
     }
@@ -86,7 +86,11 @@ impl RepositoryHandler {
         log::trace!("Targeting {:?}", &full_url);
         let request = client_details.client.get(full_url);
         log::trace!("{:?}", &request);
-        let response = request.send().await?.json::<RepositoryResponse>().await?;
+        let response = request
+            .send()
+            .await?
+            .json::<StargazersQueryResponse>()
+            .await?;
         log::trace!("{:?}", &response);
         let total_count = response.total_count;
         tokio::spawn(async move {
@@ -106,7 +110,7 @@ impl RepositoryHandler {
 }
 fn create_repo_url(
     request_no: u32,
-    client_details: Arc<HttpClientDetails>,
+    client_details: &Arc<HttpClientDetails>,
     page_size: u32,
 ) -> Result<Url> {
     reqwest::Url::parse_with_params(
@@ -126,13 +130,15 @@ fn create_repo_url(
 }
 
 #[derive(Deserialize, Debug)]
-pub struct RepositoryResponse {
+#[allow(dead_code)]
+pub struct StargazersQueryResponse {
     total_count: u32,
     items: Vec<RepositoryDetails>,
     #[serde(flatten, skip)]
     other: Other,
 }
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 struct RepositoryDetails {
     stargazers_count: u32,
     contributors_url: String,

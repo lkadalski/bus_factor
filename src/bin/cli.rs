@@ -6,12 +6,13 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    // Name of the programming language
+    ///Name of the programming language
     #[clap(short, long)]
     language: String,
-    //Number of projects to consider
+    ///Number of projects to consider
     #[clap(short, long, default_value = "10")]
     project_count: u32,
+    ///GitHub URL
     #[clap(
         short,
         long,
